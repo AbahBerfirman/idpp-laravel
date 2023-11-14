@@ -1,8 +1,6 @@
 <script setup>
-import { VForm } from 'vuetify/components/VForm'
 import { useAppAbility } from '@/plugins/casl/useAppAbility'
 import AuthProvider from '@/views/pages/authentication/AuthProvider.vue'
-import axios from '@axios'
 import { useGenerateImageVariant } from '@core/composable/useGenerateImageVariant'
 import authV2LoginIllustrationBorderedDark from '@images/pages/auth-v2-login-illustration-bordered-dark.png'
 import authV2LoginIllustrationBorderedLight from '@images/pages/auth-v2-login-illustration-bordered-light.png'
@@ -16,6 +14,7 @@ import {
   emailValidator,
   requiredValidator,
 } from '@validators'
+import { VForm } from 'vuetify/components/VForm'
 
 const authThemeImg = useGenerateImageVariant(authV2LoginIllustrationLight, authV2LoginIllustrationDark, authV2LoginIllustrationBorderedLight, authV2LoginIllustrationBorderedDark, true)
 const authThemeMask = useGenerateImageVariant(authV2MaskLight, authV2MaskDark)
@@ -34,26 +33,58 @@ const email = ref('admin@demo.com')
 const password = ref('admin')
 const rememberMe = ref(false)
 
-const login = () => {
-  axios.post('/auth/login', {
-    email: email.value,
-    password: password.value,
-  }).then(r => {
-    const { accessToken, userData, userAbilities } = r.data
+// const login = () => {
+//   axios.post('/auth/login', {
+//     email: email.value,
+//     password: password.value,
+//   }).then(r => {
+//     const { accessToken, userData, userAbilities } = r.data
 
-    localStorage.setItem('userAbilities', JSON.stringify(userAbilities))
-    ability.update(userAbilities)
-    localStorage.setItem('userData', JSON.stringify(userData))
-    localStorage.setItem('accessToken', JSON.stringify(accessToken))
+//     localStorage.setItem('userAbilities', JSON.stringify(userAbilities))
+//     ability.update(userAbilities)
+//     localStorage.setItem('userData', JSON.stringify(userData))
+//     localStorage.setItem('accessToken', JSON.stringify(accessToken))
+
+//     // Redirect to `to` query if exist or redirect to index route
+//     router.replace(route.query.to ? String(route.query.to) : '/')
+//   }).catch(e => {
+//     const { errors: formErrors } = e.response.data
+
+//     errors.value = formErrors
+//     console.error(e.response.data)
+//   })
+// }
+
+const login = async () => {
+  try {
+    const res = await $api('/auth/login', {
+      method: 'POST',
+      body: {
+        email: credentials.value.email,
+        password: credentials.value.password,
+      },
+      onResponseError({ response }) {
+        errors.value = response._data.errors
+      },
+    })
+
+    const { accessToken, userData, userAbilityRules } = res
+
+    useCookie('userAbilityRules').value = userAbilityRules
+    ability.update(userAbilityRules)
+
+    useCookie('userData').value = userData
+    useCookie('accessToken').value = accessToken
 
     // Redirect to `to` query if exist or redirect to index route
-    router.replace(route.query.to ? String(route.query.to) : '/')
-  }).catch(e => {
-    const { errors: formErrors } = e.response.data
-
-    errors.value = formErrors
-    console.error(e.response.data)
-  })
+    // ❗ nextTick is required to wait for DOM updates and later redirect
+    await nextTick(() => {
+      router.replace(route.query.to ? String(route.query.to) : '/')
+    })
+  }
+  catch (err) {
+    console.error(err)
+  }
 }
 
 const onSubmit = () => {
@@ -109,21 +140,8 @@ const onSubmit = () => {
             Welcome to <span class="text-capitalize"> {{ themeConfig.app.title }} </span>! 👋🏻
           </h5>
           <p class="mb-0">
-            Please sign-in to your account and start the adventure
+            Please sign-in to your account
           </p>
-        </VCardText>
-        <VCardText>
-          <VAlert
-            color="primary"
-            variant="tonal"
-          >
-            <p class="text-caption mb-2">
-              Admin Email: <strong>admin@demo.com</strong> / Pass: <strong>admin</strong>
-            </p>
-            <p class="text-caption mb-0">
-              Client Email: <strong>client@demo.com</strong> / Pass: <strong>client</strong>
-            </p>
-          </VAlert>
         </VCardText>
         <VCardText>
           <VForm
